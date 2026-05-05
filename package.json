@@ -1,0 +1,17 @@
+{
+  "name": "gw-tanstack-table",
+  "version": "0.0.1",
+  "description": "WeWeb coded element wrapping TanStack Table (Vue)",
+  "scripts": {
+    "build": "weweb build name=gw-tanstack-table type=wwobject",
+    "serve": "weweb serve"
+  },
+  "keywords": [],
+  "license": "MIT",
+  "dependencies": {
+    "@tanstack/vue-table": "^8.21.3"
+  },
+  "devDependencies": {
+    "@weweb/cli": "^3.8.13"
+  }
+}
