@@ -11,13 +11,22 @@ npm run serve
 
 WeWeb: **Dev** → **Open Dev Editor** → **Add local Element** → port (see [development process](https://developer.weweb.io/development-process.html)).
 
-## Publish
+## Publish & use in the **real** (non–Dev) editor
 
-Push to GitHub, attach **source code** in the WeWeb dashboard, drag the component from **Dev** (normal editor).
+1. **Version**: bump `version` in `package.json` when you ship a change WeWeb should rebuild.
+2. **Push** this repo to **GitHub** (branch you want WeWeb to track, e.g. `main`).
+3. **Dashboard** → your workspace → **Coded components** → **Import element** (or attach **source code** to an existing component) → pick the repo and branch.
+4. Wait for WeWeb’s **build** to finish, then open the component **version** and set it as **active** for the project.
+5. Open the **normal** project **Editor** (not “Open Dev Editor”), **Add** panel → **Coded components** → drag **TanStack Table (Guestwhat)** (or your registered name) onto the page.
+6. Clear **local Dev** element instances if you were testing on a port, so the page uses the **published** bundle.
+
+Local check before pushing:
 
 ```bash
 npm run build
 ```
+
+See also: [WeWeb — push / import coded components](https://developer.weweb.io/using-llms-to-generate-custom-coded-comps/using-cursor.html) and [development process](https://developer.weweb.io/development-process.html).
 
 ## Bindings
 
@@ -25,7 +34,7 @@ npm run build
 |----------|------|
 | **Row data** | Array of records |
 | **Column definitions** | TanStack `ColumnDef` shapes, or `{ field, headerName }` like AG Grid |
-| **Cell WeWeb templates** | Object map: template id → WeWeb element (`isWwObject` + `type`). Column `meta.gwWwTemplateKey` (or `gwWwTemplateKey`) picks the entry; cells get `:ww-props` `{ cellValue, rowData, rowId, columnId, accessorKey }` |
+| **WeWeb cell dropzone** | Set **`gwWwDropzoneTarget`** on the column (string id). Renders the shared tree from `content.cellWwSlot`; `ww-props` / context include **`dropzoneTarget`** (same id), **`cellValue`**, **`rowData`**, **`rowId`**, **`columnId`**, **`accessorKey`**. Branch in the dropped UI by `dropzoneTarget`. Legacy `gwWwTemplateKey: '_slot'` maps to target **`_slot`**. ([dropzone data](https://docs.weweb.io/components/component-dropzones.html)) |
 | **Quick filter** | Client-side substring match over `JSON.stringify(row)` |
 | **Appearance** | `headerStyle`, `cellStyle`, `rowStyle`, `oddRowStyle` / `evenRowStyle`, `headerClass`, `cellClass` (plain objects / strings) |
 | **Height in layout** | Fill / fit content / fixed (+ optional fill min-height CSS) |
@@ -34,7 +43,7 @@ Workflows: **Table ready** (`rowCount`), **Row clicked** (`data`, `rowId`), **Se
 
 ## Test formulas (`test/`)
 
-Example WeWeb formula sources (same row dataset as `gw-ag-grid/test`): **`row-data.js`**, **`column-defs.js`**, **`cell-ww-templates.js`** (map for `cellWwTemplates`), **`appearance.js`**, **`quick-filter.js`**.
+Example WeWeb formula sources (same row dataset as `gw-ag-grid/test`): **`row-data.js`**, **`column-defs.js`**, **`appearance.js`**, **`quick-filter.js`**.
 
 ## Limits
 

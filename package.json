@@ -1,6 +1,6 @@
 {
   "name": "gw-tanstack-table",
-  "version": "0.0.1",
+  "version": "0.1",
   "description": "WeWeb coded element wrapping TanStack Table (Vue)",
   "scripts": {
     "build": "weweb build name=gw-tanstack-table type=wwobject",

@@ -10,6 +10,8 @@ description: >-
 
 **What it is:** A **WeWeb coded element** (Vue 3 SFC + `ww-config.js`) that wraps [**TanStack Table v8**](https://tanstack.com/table/v8/docs/framework/vue/vue-table) (`@tanstack/vue-table`). Same product family as **`gw-ag-grid`** (Guestwhat): bind rows/columns in the editor, drive workflows from table events—**no AG Grid** here; the UI is a plain `<table>` you control in `src/wwElement.vue`.
 
+**WeWeb component contract:** `props`: **`uid`** (required), **`content`**, and in editor builds **`wwEditorState`** inside `/* wwEditor:start */` … `/* wwEditor:end */`. Filter popover code uses **`wwLib.getFrontWindow()`** / **`wwLib.getFrontDocument()`** when available.
+
 **Repo layout:** `src/wwElement.vue` (behavior + template), `ww-config.js` (editor properties + `triggerEvents`), `test/*.js` (formula fixtures mirroring `gw-ag-grid/test`).
 
 **Deeper TanStack/agent context:** use **[tanstack-table](../tanstack-table/SKILL.md)** (Intent vs Code Mode, official Table doc links, column-def patterns).
@@ -33,7 +35,7 @@ description: >-
 | **Pagination** | Optional; **`enablePagination`**, `pageSize`, `pageSizeOptions`, `showPaginationSummary`. Footer controls in `.gw-ts-pagination`. Changing filters resets page index. |
 | **Row selection** | Optional checkbox column; **`getRowId`** from **`rowIdField`** (default `id`). Selection IDs stable across pages. |
 | **Inline edit** | Column `editable: true` → text input + **`cell-value-changed`** workflow. |
-| **WeWeb cells** | **`cellWwTemplates`** map (id → WeWeb element descriptor). Column **`meta.gwWwTemplateKey`** or **`gwWwTemplateKey`** selects template.**Template wins over `editable`** for that column. Renders **`<component :is="'wwElement'" v-bind="…" :ww-props="…" />`** with `{ cellValue, rowData, rowId, columnId, accessorKey }`. See [add-element-property](https://developer.weweb.io/add-element-property.html). |
+| **WeWeb cells** | Column **`gwWwDropzoneTarget`** (string id). Shared dropped tree **`content.cellWwSlot`**; **`wwLayout path="cellWwSlot"`**. **`ww-props` / context:** `dropzoneTarget`, `cellValue`, `rowData`, ids — branch slot UI by `dropzoneTarget`. **Wins over `editable`**. Legacy **`gwWwTemplateKey: '_slot'`** → target **`_slot`**. |
 | **Appearance** | **`appearanceJson`** → `normalizeAppearance`: root/scroll/table, header/body cells, rows, filter UI, selection/edit inputs, **pagination bar**, sticky header. |
 | **Layout** | **`layoutSizing`**: fill / autoHeight / fixed + optional **`height`**, **`fillMinHeightCss`**. |
 
@@ -50,7 +52,7 @@ description: >-
 |----------|------|
 | `rowData` | Array of records |
 | `columnDefs` | Column defs (TanStack or `{ field, headerName }`) |
-| `cellWwTemplates` | Map template id → embedded WeWeb element |
+| `cellWwSlot` | Hidden content field: array of dropped WeWeb nodes for **\_slot** columns (canvas dropzones) |
 | `enableRowSelection`, `rowIdField` | Checkbox column + stable ids |
 | `enablePagination`, `pageSize`, `pageSizeOptions`, `showPaginationSummary` | Client pagination |
 | `quickFilterText` | Global substring filter (bindings coerced to text) |

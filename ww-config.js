@@ -63,37 +63,18 @@ export default {
       bindingValidation: {
         validations: [{ type: 'array' }],
         tooltip:
-          'Examples: `{ accessorKey: "name", header: "Name" }` or `{ field: "name", headerName: "Name" }`. Optional `editable: true` enables inline edit + cell-value-changed (ignored if `gwWwTemplateKey` / `meta.gwWwTemplateKey` is set). Use `meta: { gwWwTemplateKey: "myTpl" }` with Cell WeWeb templates map. Function fields are ignored.',
-      },
-      /* wwEditor:end */
-    },
-    cellWwTemplates: {
-      label: { en: 'Cell WeWeb templates' },
-      type: 'Info',
-      options: {
-        text: {
-          en: 'Map of template id → embedded WeWeb element (editor: add child elements / bind object). Keys must match column meta.',
-        },
-      },
-      defaultValue: {},
-      bindable: true,
-      section: 'settings',
-      /* wwEditor:start */
-      bindingValidation: {
-        validations: [{ type: 'object' }],
-        tooltip:
-          'Map keys = template ids; values = WeWeb objects (`isWwObject: true` + `type` for built-ins, or `libraryComponentBaseId` for reusable components — see page `wwObjects` in exports). Table sets `type` from `libraryComponentBaseId` when needed. Prefer copy/paste from editor. **Dropzone:** `gwWwTemplateKey: \"_slot\"` → dashed area in **first row** of that column (editor). `:ww-props`: `{ cellValue, rowData, rowId, columnId, accessorKey }`.',
+          'Examples: `{ accessorKey: "name", header: "Name" }` or `{ field: "name", headerName: "Name" }`. Optional `editable: true` enables inline edit + cell-value-changed (ignored if **`gwWwDropzoneTarget`** is set — WeWeb dropzone cells win). **WeWeb cells:** set **`gwWwDropzoneTarget`** (string id) on the column; editor uses `content.cellWwSlot`; `ww-props.dropzoneTarget` equals that id + `cellValue` / `rowData` / ids. Legacy `gwWwTemplateKey: \"_slot\"` is accepted and mapped to `gwWwDropzoneTarget: \"_slot\"`. Function fields are ignored.',
       },
       /* wwEditor:end */
     },
     cellWwSlot: {
-      label: { en: 'Cell template (dropzone)' },
+      label: { en: 'Cell template (dropzone storage)' },
       type: 'Info',
-      hidden: false,
+      hidden: true,
       options: {
         text: {
           en:
-            'Editor: dashed zone in the **first table row** of each `_slot` column. Drag one child there; data is `content.cellWwSlot`. Hidden on the live site.',
+            'Canvas **dropzone** storage for columns with **`gwWwDropzoneTarget`** (see column defs). `wwLayout path="cellWwSlot"`. Each row: `ww-props` include `dropzoneTarget` (column id), `cellValue`, `rowData`, ids. Slot UI branches on `dropzoneTarget` to pick the right nested elements.',
         },
       },
       defaultValue: [],
@@ -102,7 +83,7 @@ export default {
       bindingValidation: {
         validations: [{ type: 'array' }],
         tooltip:
-          'Array of WeWeb elements from the on-canvas dropzone. Use with `gwWwTemplateKey: \"_slot\"`. Binds like other lists.',
+          'WeWeb element array from canvas dropzones on columns with `gwWwDropzoneTarget` (`isWwObject` + `type` or `libraryComponentBaseId`). Usually leave unbound; bind only if you inject descriptors via formula.',
       },
       /* wwEditor:end */
     },

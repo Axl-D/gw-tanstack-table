@@ -2,7 +2,8 @@
 name: tanstack-table
 description: >-
   TanStack Table v8 for this WeWeb element (gw-tanstack-table): useVueTable, column defs,
-  filtering, row models, WeWeb bindings. Use when editing wwElement.vue, ww-config.js,
+  filtering, row models, WeWeb bindings. Use when editing wwElement.vue, wwElement.vue.scss,
+  composables/useGwTsTable.js, src/gw-ts/*, ww-config.js,
   test/ formulas, @tanstack/vue-table, vue-table, FlexRender, column filters, quick filter,
   or comparing to AG Grid patterns.
 ---
@@ -36,26 +37,31 @@ Optional later features (not fully wired in README “limits” may lag code —
 
 ## APIs and patterns used in **this** codebase
 
-Follow **actual imports and options** in `src/wwElement.vue`:
+Follow **actual imports and options** in `src/composables/useGwTsTable.js` (table shell: `src/wwElement.vue`):
 
 - **Table factory:** `useVueTable` from `@tanstack/vue-table`
 - **Row models:** `getCoreRowModel()`, `getFilteredRowModel()`, optional `getPaginationRowModel()`
-- **Rendering:** `FlexRender`, embedded **`wwElement`** for `meta.gwWwTemplateKey` cells; `functionalUpdate` for controlled state updaters
+- **Rendering:** `FlexRender`, embedded **`wwElement`** when **`meta.gwWwDropzoneTarget`** is set (WeWeb dropzone column); `functionalUpdate` for controlled state updaters
 - **Table options in use (typical):** `enableColumnFilters`, `enableFilters`, `filterFns` (e.g. `gwEnumSet`, `gwBoolean`, `gwNumberExact`), `columnResizeMode`, `enableColumnResizing`, `onColumnSizingChange`, `onColumnFiltersChange`, `defaultColumn` sizing; pagination when enabled; when selection is on: `enableRowSelection`, `enableMultiRowSelection`, `getRowId`, `onRowSelectionChange`
-- **Data / columns:** use **getters** `get data() { return tableData.value }` and `get columns() { return tableColumns.value }` — do **not** pass `shallowRef` as `data`/`columns` directly (Vue adapter `IS_REACTIVE` pitfall → zero rows). See comments in `wwElement.vue`.
+- **Data / columns:** use **getters** `get data() { return tableData.value }` and `get columns() { return tableColumns.value }` — do **not** pass `shallowRef` as `data`/`columns` directly (Vue adapter `IS_REACTIVE` pitfall → zero rows). See comments in `useGwTsTable.js`.
 - **Column defs:** `mapColumnDef` accepts AG Grid–like `{ field, headerName }` but TanStack-native shape is `{ accessorKey, header }` or `accessorFn` + `id`.
 
 ## WeWeb project conventions
 
 | Area | Location |
 |------|----------|
-| Element implementation | `src/wwElement.vue` — sanitize rows, unwrap bindings, `buildColumns` / `mapColumnDef`, table state, template |
-| Editor bindings / properties | `ww-config.js` — `rowData`, `columnDefs`, `cellWwTemplates`, `quickFilterText`, `enableRowSelection`, `rowIdField`, appearance, triggers (`table-ready`, `row-clicked`, `selection-changed`, `cell-value-changed`) |
+| SFC shell (template, `FlexRender` registration) | `src/wwElement.vue` |
+| Scoped styles | `src/wwElement.vue.scss` (linked via `<style scoped lang="scss" src="…">`) |
+| Table `useVueTable`, layout, selection, pagination, inline edit | `src/composables/useGwTsTable.js` |
+| Column filter popover + outside-click | `src/composables/useGwFilterPanel.js` |
+| WeWeb `wwElement` / `wwLayout` cell templates | `src/composables/useGwCellWw.js` |
+| Pure helpers (bindings, columns, filters, appearance) | `src/gw-ts/*.js` |
+| Editor bindings / properties | `ww-config.js` — `rowData`, `columnDefs`, `cellWwSlot` (hidden; storage for dropzone columns with `gwWwDropzoneTarget`), `quickFilterText`, `enableRowSelection`, `rowIdField`, appearance, triggers (`table-ready`, `row-clicked`, `selection-changed`, `cell-value-changed`) |
 | Example formula sources | `test/row-data.js`, `test/column-defs.js`, `test/appearance.js`, `test/quick-filter.js` |
 
 **Binding pitfalls:** unwrap array/text bindings (`coerceBoundText` for quick filter — avoid `[object Object]`). Bind **columnDefs** to the correct property or headers infer from the first row only.
 
-**WeWeb cells:** `mapColumnDef` sets `meta.gwWwTemplateKey` from `gwWwTemplateKey` or `meta.gwWwTemplateKey`. Template wins over `gwEditable`. Template: `<component :is="'wwElement'" v-bind="descriptor" :ww-props="..." />` (global `wwElement` at runtime). Registry: `content.cellWwTemplates[key]`.
+**WeWeb cells:** Column **`gwWwDropzoneTarget`** (non-empty string) → `meta` + `ww-props.dropzoneTarget`. Descriptor from **`content.cellWwSlot`**. `<wwElement v-bind="descriptor" :ww-props="..." />` inside **`wwLayoutItemContext`**. Legacy **`gwWwTemplateKey: '_slot'`** → `meta.gwWwDropzoneTarget === '_slot'`.
 
 **Triggers:** `emitWorkflow` sends `{ name, event, payload }` to match WeWeb (`event` is what workflows usually bind).
 

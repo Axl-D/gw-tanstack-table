@@ -11,13 +11,10 @@
  * plus `filterEnumValues` for enums. Example: role → admin/editor/viewer.
  * `editable: true` enables inline text edit + WeWeb `cell-value-changed`.
  *
- * **Editor dropzone (recommended):** set `gwWwTemplateKey: '_slot'` (or `__editorSlot__`).
- * In the editor, drag **one** component into the dashed zone in the **first row** of that column.
- * The dropzone is **editor-only** (`wwEditorState`); published pages use `content.cellWwSlot` only.
- *
- * **Map mode (`cellWwTemplates`):** each value must match a WeWeb object: **`isWwObject: true`**
- * and **`type`** (built-in) or **`libraryComponentBaseId`** (reusable component base id from exports).
- * Prefer copying from the editor export. Hand-rolled JSON may yield “element undefined”.
+ * **WeWeb cell (dropzone):** set **`gwWwDropzoneTarget`** to a non-empty string (top-level or
+ * `meta`). That id is passed as **`dropzoneTarget`** on `ww-props`; use it in the dropped UI to
+ * render the right variant. Content lives in **`content.cellWwSlot`**. Legacy **`gwWwTemplateKey:
+ * '_slot'`** is still read and mapped to **`gwWwDropzoneTarget: '_slot'`**.
  *
  * Only plain JSON survives bindings (no `cell` / `accessorFn` from formulas).
  */
@@ -29,24 +26,28 @@ return [
     minSize: 100,
     size: 120,
     editable: true,
+    gwWwDropzoneTarget: 'text',
   },
   {
     accessorKey: 'last_name',
     header: 'Nom',
     minSize: 100,
     size: 120,
+    gwWwDropzoneTarget: 'text',
   },
   {
     accessorKey: 'email',
     header: 'Email',
     minSize: 180,
     size: 220,
+    gwWwDropzoneTarget: 'text',
   },
   {
     accessorKey: 'organisation_name',
     header: 'Organisation',
     minSize: 140,
     size: 180,
+    gwWwDropzoneTarget: 'text',
   },
   {
     accessorKey: 'role',
@@ -54,6 +55,7 @@ return [
     size: 100,
     filterVariant: 'enum',
     filterEnumValues: ['admin', 'editor', 'viewer'],
+    gwWwDropzoneTarget: 'badges',
   },
   {
     accessorKey: 'preferred_language',
@@ -61,24 +63,27 @@ return [
     size: 80,
     filterVariant: 'enum',
     filterEnumValues: ['fr', 'en'],
-    gwWwTemplateKey: '_slot',
+    gwWwDropzoneTarget: 'badges',
   },
   {
     accessorKey: 'has_accepted_tos',
     header: 'CGU',
     size: 72,
     filterVariant: 'boolean',
+    gwWwDropzoneTarget: 'checkbox',
   },
   {
     accessorKey: 'is_super_admin',
     header: 'Super admin',
     size: 110,
     filterVariant: 'boolean',
+    gwWwDropzoneTarget: 'checkbox',
   },
   {
     accessorKey: 'created_at',
     header: 'Créé le',
     minSize: 140,
     size: 165,
+    gwWwDropzoneTarget: 'date',
   },
 ];
