@@ -11,6 +11,14 @@
  * plus `filterEnumValues` for enums. Example: role → admin/editor/viewer.
  * `editable: true` enables inline text edit + WeWeb `cell-value-changed`.
  *
+ * **Editor dropzone (recommended):** set `gwWwTemplateKey: '_slot'` (or `__editorSlot__`).
+ * In the editor, drag **one** component into the dashed zone in the **first row** of that column.
+ * The dropzone is **editor-only** (`wwEditorState`); published pages use `content.cellWwSlot` only.
+ *
+ * **Map mode (`cellWwTemplates`):** each value must match a WeWeb object: **`isWwObject: true`**
+ * and **`type`** (built-in) or **`libraryComponentBaseId`** (reusable component base id from exports).
+ * Prefer copying from the editor export. Hand-rolled JSON may yield “element undefined”.
+ *
  * Only plain JSON survives bindings (no `cell` / `accessorFn` from formulas).
  */
 
@@ -53,6 +61,7 @@ return [
     size: 80,
     filterVariant: 'enum',
     filterEnumValues: ['fr', 'en'],
+    gwWwTemplateKey: '_slot',
   },
   {
     accessorKey: 'has_accepted_tos',

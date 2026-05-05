@@ -63,7 +63,46 @@ export default {
       bindingValidation: {
         validations: [{ type: 'array' }],
         tooltip:
-          'Examples: `{ accessorKey: "name", header: "Name" }` or `{ field: "name", headerName: "Name" }`. Optional `editable: true` enables inline edit + cell-value-changed. Function fields are ignored.',
+          'Examples: `{ accessorKey: "name", header: "Name" }` or `{ field: "name", headerName: "Name" }`. Optional `editable: true` enables inline edit + cell-value-changed (ignored if `gwWwTemplateKey` / `meta.gwWwTemplateKey` is set). Use `meta: { gwWwTemplateKey: "myTpl" }` with Cell WeWeb templates map. Function fields are ignored.',
+      },
+      /* wwEditor:end */
+    },
+    cellWwTemplates: {
+      label: { en: 'Cell WeWeb templates' },
+      type: 'Info',
+      options: {
+        text: {
+          en: 'Map of template id → embedded WeWeb element (editor: add child elements / bind object). Keys must match column meta.',
+        },
+      },
+      defaultValue: {},
+      bindable: true,
+      section: 'settings',
+      /* wwEditor:start */
+      bindingValidation: {
+        validations: [{ type: 'object' }],
+        tooltip:
+          'Map keys = template ids; values = WeWeb objects (`isWwObject: true` + `type` for built-ins, or `libraryComponentBaseId` for reusable components — see page `wwObjects` in exports). Table sets `type` from `libraryComponentBaseId` when needed. Prefer copy/paste from editor. **Dropzone:** `gwWwTemplateKey: \"_slot\"` → dashed area in **first row** of that column (editor). `:ww-props`: `{ cellValue, rowData, rowId, columnId, accessorKey }`.',
+      },
+      /* wwEditor:end */
+    },
+    cellWwSlot: {
+      label: { en: 'Cell template (dropzone)' },
+      type: 'Info',
+      hidden: false,
+      options: {
+        text: {
+          en:
+            'Editor: dashed zone in the **first table row** of each `_slot` column. Drag one child there; data is `content.cellWwSlot`. Hidden on the live site.',
+        },
+      },
+      defaultValue: [],
+      section: 'settings',
+      /* wwEditor:start */
+      bindingValidation: {
+        validations: [{ type: 'array' }],
+        tooltip:
+          'Array of WeWeb elements from the on-canvas dropzone. Use with `gwWwTemplateKey: \"_slot\"`. Binds like other lists.',
       },
       /* wwEditor:end */
     },
@@ -82,7 +121,7 @@ export default {
       /* wwEditor:start */
       bindingValidation: {
         tooltip:
-          'Adds a checkbox column. selection-changed payload: `{ selectedRowIds: string[], lastToggledId: string|null }` (null for select-all / bulk).',
+          'Adds a checkbox column. selection-changed event data: `{ selectedRowIds: string[], lastToggledId: string|null }` (null for select-all / bulk). Bind workflow `Event` from the trigger.',
       },
       /* wwEditor:end */
     },
@@ -215,7 +254,7 @@ export default {
       bindingValidation: {
         validations: [{ type: 'object' }],
         tooltip:
-          'Plain JSON: Layout — rootStyle/rootClass, scrollStyle/scrollClass, tableStyle/tableClass. Rows — rowStyle, bodyRowStyle/bodyRowClass, oddRowStyle/evenRowStyle. Cells — headerCellStyle/headerCellClass (or headerStyle/headerClass), bodyCellStyle/bodyCellClass (or cellStyle/cellClass). Filters — filterTrigger*, filterPanel*, filterInput*. Selection/edit — selectionCheckbox*, editableInput*. Pagination bar — paginationStyle/Class, paginationButton*, paginationSelect*, paginationSummary*. Sticky — stickyHeader, stickyHeaderTop.',
+          'Plain JSON: Layout — rootStyle/rootClass, scrollStyle/scrollClass, tableStyle/tableClass. Rows — rowStyle, bodyRowStyle/bodyRowClass, oddRowStyle/evenRowStyle. Cells — headerCellStyle/headerCellClass (or headerStyle/headerClass), bodyCellStyle/bodyCellClass (or cellStyle/cellClass). Filters — filterTrigger*, filterPanel*, filterInput*. Selection/edit — selectionCheckbox*, editableInput*. Pagination bar — paginationStyle/Class, paginationButton*, paginationSelect*, paginationSummary*. Sticky — stickyHeader, stickyHeaderTop. WeWeb cell hosts — style inner `.gw-ts-anchor--ww`; editor dropzone strip — `.gw-ts-cell-template-dropzone`.',
       },
       /* wwEditor:end */
     },

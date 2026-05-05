@@ -31,18 +31,17 @@ Read these in order when changing table behaviour:
 
 Optional later features (not fully wired in README “limits” may lag code — check `wwElement.vue`):
 
-- [Row selection](https://tanstack.com/table/v8/docs/guide/row-selection) — `enableRowSelection`, `getRowId`, header/body checkboxes, `selection-changed` WeWeb trigger (`selectedRowIds`).
 - [Sorting](https://tanstack.com/table/v8/docs/guide/sorting)
-- [Pagination](https://tanstack.com/table/v8/docs/guide/pagination)
+- Row virtualisation
 
 ## APIs and patterns used in **this** codebase
 
 Follow **actual imports and options** in `src/wwElement.vue`:
 
 - **Table factory:** `useVueTable` from `@tanstack/vue-table`
-- **Row models:** `getCoreRowModel()`, `getFilteredRowModel()`
-- **Rendering:** `FlexRender`, `functionalUpdate` for controlled state updaters
-- **Table options in use (typical):** `enableColumnFilters`, `enableFilters`, `filterFns` (e.g. `gwEnumSet`, `gwBoolean`, `gwNumberExact`), `columnResizeMode`, `enableColumnResizing`, `onColumnSizingChange`, `onColumnFiltersChange`, `defaultColumn` sizing; when selection is on: `enableRowSelection`, `enableMultiRowSelection`, `getRowId`, `onRowSelectionChange`
+- **Row models:** `getCoreRowModel()`, `getFilteredRowModel()`, optional `getPaginationRowModel()`
+- **Rendering:** `FlexRender`, embedded **`wwElement`** for `meta.gwWwTemplateKey` cells; `functionalUpdate` for controlled state updaters
+- **Table options in use (typical):** `enableColumnFilters`, `enableFilters`, `filterFns` (e.g. `gwEnumSet`, `gwBoolean`, `gwNumberExact`), `columnResizeMode`, `enableColumnResizing`, `onColumnSizingChange`, `onColumnFiltersChange`, `defaultColumn` sizing; pagination when enabled; when selection is on: `enableRowSelection`, `enableMultiRowSelection`, `getRowId`, `onRowSelectionChange`
 - **Data / columns:** use **getters** `get data() { return tableData.value }` and `get columns() { return tableColumns.value }` — do **not** pass `shallowRef` as `data`/`columns` directly (Vue adapter `IS_REACTIVE` pitfall → zero rows). See comments in `wwElement.vue`.
 - **Column defs:** `mapColumnDef` accepts AG Grid–like `{ field, headerName }` but TanStack-native shape is `{ accessorKey, header }` or `accessorFn` + `id`.
 
@@ -51,12 +50,16 @@ Follow **actual imports and options** in `src/wwElement.vue`:
 | Area | Location |
 |------|----------|
 | Element implementation | `src/wwElement.vue` — sanitize rows, unwrap bindings, `buildColumns` / `mapColumnDef`, table state, template |
-| Editor bindings / properties | `ww-config.js` — `rowData`, `columnDefs`, `quickFilterText`, `enableRowSelection`, `rowIdField`, appearance, triggers (`table-ready`, `row-clicked`, `selection-changed`, `cell-value-changed`) |
+| Editor bindings / properties | `ww-config.js` — `rowData`, `columnDefs`, `cellWwTemplates`, `quickFilterText`, `enableRowSelection`, `rowIdField`, appearance, triggers (`table-ready`, `row-clicked`, `selection-changed`, `cell-value-changed`) |
 | Example formula sources | `test/row-data.js`, `test/column-defs.js`, `test/appearance.js`, `test/quick-filter.js` |
 
 **Binding pitfalls:** unwrap array/text bindings (`coerceBoundText` for quick filter — avoid `[object Object]`). Bind **columnDefs** to the correct property or headers infer from the first row only.
 
-**Appearance (`appearanceJson`):** `normalizeAppearance` maps shell (`root*`, `scroll*`, `table*`), rows (`rowStyle`, `bodyRow*`, odd/even), cells (`headerCell*` / `bodyCell*` or legacy `headerStyle` / `cellStyle` + `*Class`), filter UI (`filterTrigger*`, `filterPanel*`, `filterInput*`), selection/edit inputs (`selectionCheckbox*`, `editableInput*`), sticky (`stickyHeader`, `stickyHeaderTop`). Panel position keys set by the element override user `filterPanelStyle` for anchor geometry.
+**WeWeb cells:** `mapColumnDef` sets `meta.gwWwTemplateKey` from `gwWwTemplateKey` or `meta.gwWwTemplateKey`. Template wins over `gwEditable`. Template: `<component :is="'wwElement'" v-bind="descriptor" :ww-props="..." />` (global `wwElement` at runtime). Registry: `content.cellWwTemplates[key]`.
+
+**Triggers:** `emitWorkflow` sends `{ name, event, payload }` to match WeWeb (`event` is what workflows usually bind).
+
+**Appearance (`appearanceJson`):** `normalizeAppearance` maps shell (`root*`, `scroll*`, `table*`), rows (`rowStyle`, `bodyRow*`, odd/even), cells (`headerCell*` / `bodyCell*` or legacy `headerStyle` / `cellStyle` + `*Class`), filter UI (`filterTrigger*`, `filterPanel*`, `filterInput*`), selection/edit inputs (`selectionCheckbox*`, `editableInput*`), pagination (`pagination*`), sticky (`stickyHeader`, `stickyHeaderTop`). Panel position keys set by the element override user `filterPanelStyle` for anchor geometry.
 
 ## Mental model: not AG Grid
 

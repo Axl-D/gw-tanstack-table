@@ -1,13 +1,14 @@
 <template>
-  <div
-    class="gw-ts-root"
-    :class="[
-      rootLayoutClasses,
-      appearance.rootClass || undefined,
-      { 'gw-ts-root--sticky-header': stickyHeaderOn },
-    ]"
-    :style="rootInlineStyle"
-  >
+    <div
+      class="gw-ts-root"
+      :class="[
+        rootLayoutClasses,
+        appearance.rootClass || undefined,
+        { 'gw-ts-root--sticky-header': stickyHeaderOn },
+      ]"
+      :style="rootInlineStyle"
+    >
+    <!-- Dropzone for `_slot` / `__editorSlot__` lives inside the first body cell (editor only). -->
     <div
       ref="scrollElRef"
       class="gw-ts-scroll"
@@ -107,9 +108,9 @@
         </thead>
         <tbody>
           <tr
-            v-for="(row, idx) in bodyRows"
+            v-for="(row, rowIdx) in bodyRows"
             :key="row.id"
-            :style="rowStyleAt(idx)"
+            :style="rowStyleAt(rowIdx)"
             :class="appearance.bodyRowClass || undefined"
             @click="onRowClicked(row)"
           >
@@ -145,6 +146,31 @@
                     @blur="onEditableCellBlur(cell, row, $event)"
                     @click.stop
                   />
+                </span>
+              </template>
+              <template v-else-if="cell.column.columnDef.meta?.gwWwTemplateKey">
+                <span class="gw-ts-anchor gw-ts-anchor--ww" @click.stop>
+                  <wwLayout
+                    v-if="showEditorCellWwSlotDropzone(cell, rowIdx)"
+                    path="cellWwSlot"
+                    direction="column"
+                    tag="div"
+                    class="gw-ts-cell-template-dropzone gw-ts-cell-template-dropzone--in-cell"
+                  />
+                  <template v-else>
+                    <template
+                      v-for="bundle in cellWwBindList(cell)"
+                      :key="row.id + ':' + cell.column.id"
+                    >
+                      <wwElement
+                        v-bind="bundle"
+                        :ww-props="cellWwForcedProps(cell, row)"
+                      />
+                    </template>
+                    <template v-if="!resolveCellWwDescriptor(cell)">
+                      {{ cellPlainFallback(cell) }}
+                    </template>
+                  </template>
                 </span>
               </template>
               <template v-else>
@@ -231,6 +257,7 @@
         v-if="openFilterColumnId && openFilterColumn"
         :id="'gw-ts-filter-panel-' + openFilterColumnId"
         ref="filterPanelRef"
+        data-gw-ts-filter-panel="true"
         class="gw-ts-filter-panel"
         :class="appearance.filterPanelClass || undefined"
         :style="filterPanelBoxStyle"
@@ -743,11 +770,29 @@ function normalizeColumnFilters(base) {
   };
 }
 
+function coerceGwWwTemplateKey(cleaned) {
+  const top = cleaned.gwWwTemplateKey;
+  const fromMeta =
+    cleaned.meta &&
+    typeof cleaned.meta === 'object' &&
+    !Array.isArray(cleaned.meta) &&
+    cleaned.meta.gwWwTemplateKey != null
+      ? cleaned.meta.gwWwTemplateKey
+      : undefined;
+  const raw = top != null && top !== '' ? top : fromMeta;
+  if (raw == null || raw === '') {
+    return null;
+  }
+  const s = String(raw).trim();
+  return s || null;
+}
+
 function mapColumnDef(c) {
   const cleaned = stripFunctionsDeep(c);
+  const wwTemplateKey = coerceGwWwTemplateKey(cleaned);
   let base;
   if (cleaned.accessorKey || cleaned.accessorFn) {
-    base = cleaned;
+    base = { ...cleaned };
   } else {
     const field = cleaned.field ?? cleaned.accessorKey;
     const header = cleaned.headerName ?? cleaned.header ?? field;
@@ -758,7 +803,27 @@ function mapColumnDef(c) {
       header: header ?? field,
     };
   }
+  delete base.gwWwTemplateKey;
+  if (base.meta && typeof base.meta === 'object' && !Array.isArray(base.meta)) {
+    const { gwWwTemplateKey: _gwWw, ...metaRest } = base.meta;
+    base.meta = metaRest;
+  }
   const def = normalizeColumnFilters(base);
+  const metaBase =
+    def.meta && typeof def.meta === 'object' && !Array.isArray(def.meta)
+      ? { ...def.meta }
+      : {};
+
+  if (wwTemplateKey) {
+    return {
+      ...def,
+      meta: {
+        ...metaBase,
+        gwWwTemplateKey: wwTemplateKey,
+      },
+    };
+  }
+
   const metaEditable =
     cleaned.editable === true ||
     (cleaned.meta &&
@@ -771,7 +836,7 @@ function mapColumnDef(c) {
   return {
     ...def,
     meta: {
-      ...(def.meta && typeof def.meta === 'object' ? def.meta : {}),
+      ...metaBase,
       gwEditable: true,
     },
   };
@@ -791,17 +856,87 @@ function rowsPassQuickFilter(rows, q) {
   });
 }
 
+/** Built-in elements use `type`; reusable library components use `libraryComponentBaseId` in exports. */
+function wwDescriptorTypeOrLibraryId(val) {
+  if (!val || typeof val !== 'object' || Array.isArray(val)) {
+    return '';
+  }
+  const t = val.type;
+  if (t != null && String(t).trim() !== '') {
+    return String(t).trim();
+  }
+  const lib = val.libraryComponentBaseId;
+  if (lib != null && String(lib).trim() !== '') {
+    return String(lib).trim();
+  }
+  return '';
+}
+
+function isLikelyWwElementDescriptor(val) {
+  if (!val || typeof val !== 'object' || Array.isArray(val)) {
+    return false;
+  }
+  if (val.isWwObject !== true) {
+    return false;
+  }
+  return wwDescriptorTypeOrLibraryId(val) !== '';
+}
+
+/**
+ * wwElement historically expects `type`; library components on disk often only set
+ * `libraryComponentBaseId`. Pass a shallow copy so we do not mutate editor state.
+ */
+function normalizeWwElementBindProps(desc) {
+  if (!desc || typeof desc !== 'object') {
+    return desc;
+  }
+  const needsType = desc.type == null || desc.type === '';
+  if (needsType && desc.libraryComponentBaseId) {
+    return {
+      ...desc,
+      type: desc.libraryComponentBaseId,
+    };
+  }
+  return desc;
+}
+
+/** Follow WeWeb binding wrappers until we reach a real element descriptor or give up. */
+function peelWewebElementDescriptor(val, depth = 0) {
+  if (depth > 12 || val == null) {
+    return val;
+  }
+  if (isLikelyWwElementDescriptor(val)) {
+    return val;
+  }
+  const u = unwrapBoundPlainObject(val);
+  if (u !== val) {
+    return peelWewebElementDescriptor(u, depth + 1);
+  }
+  if (val && typeof val === 'object' && !Array.isArray(val)) {
+    const inner = val.value;
+    if (inner != null && typeof inner === 'object') {
+      const peeled = peelWewebElementDescriptor(inner, depth + 1);
+      if (isLikelyWwElementDescriptor(peeled)) {
+        return peeled;
+      }
+    }
+  }
+  return val;
+}
+
 export default {
   components: {
     FlexRender,
   },
   props: {
     content: { type: Object, required: true },
+    /** Present only in WeWeb Editor; use for dropzone / editor-only UI. */
+    wwEditorState: { type: Object, required: false, default: undefined },
   },
   emits: ['trigger-event'],
   setup(props, { emit }) {
-    const emitWorkflow = (name, payload) => {
-      emit('trigger-event', { name, payload });
+    const emitWorkflow = (name, data) => {
+      emit('trigger-event', { name, event: data, payload: data });
     };
 
     const layoutSizing = computed(() => props.content.layoutSizing || 'fill');
@@ -874,6 +1009,22 @@ export default {
     const openFilterColumnId = ref(null);
     const filterPanelRef = ref(null);
     const filterAnchorThEl = shallowRef(null);
+    /** Ignore outside-close briefly after open so the same gesture does not toggle twice. */
+    let filterOutsideIgnoreUntil = 0;
+    function markFilterPanelJustOpened() {
+      const t =
+        typeof performance !== 'undefined' && typeof performance.now === 'function'
+          ? performance.now()
+          : Date.now();
+      filterOutsideIgnoreUntil = t + 320;
+    }
+    function shouldIgnoreFilterOutsideClose() {
+      const now =
+        typeof performance !== 'undefined' && typeof performance.now === 'function'
+          ? performance.now()
+          : Date.now();
+      return now < filterOutsideIgnoreUntil;
+    }
     const filterPanelAnchor = ref({
       top: 0,
       left: 0,
@@ -883,25 +1034,41 @@ export default {
     const scrollElRef = ref(null);
     const selectAllCheckboxRef = ref(null);
 
-    function clampPopoverPosition(rect) {
+    function clampPopoverPosition(thEl) {
       const margin = 8;
-      const gap = 4;
+      const gap = 6;
       const vw = typeof window !== 'undefined' ? window.innerWidth : 1024;
       const vh = typeof window !== 'undefined' ? window.innerHeight : 768;
-      const minWidth = Math.min(Math.max(200, rect.width), vw - 2 * margin);
-      let left = rect.left;
-      let top = rect.bottom + gap;
+      if (!thEl || typeof thEl.getBoundingClientRect !== 'function') {
+        return { top: margin, left: margin, maxH: 320, minWidth: 200 };
+      }
+      const thRect = thEl.getBoundingClientRect();
+      const btn = thEl.querySelector('.gw-ts-filter-trigger');
+      const btnRect = btn?.getBoundingClientRect?.() ?? thRect;
+      const anchorRect = btnRect;
+      const minWidth = Math.min(
+        Math.max(220, thRect.width),
+        vw - 2 * margin,
+      );
+      let left = anchorRect.left;
+      left = Math.max(margin, Math.min(left, vw - minWidth - margin));
+      if (left + minWidth > thRect.right + 8) {
+        left = Math.max(margin, thRect.right - minWidth);
+      }
       if (left + minWidth > vw - margin) {
         left = Math.max(margin, vw - minWidth - margin);
       }
-      if (left < margin) {
-        left = margin;
+      if (left < thRect.left - 8) {
+        left = Math.min(thRect.left, vw - minWidth - margin);
       }
-      let maxH = Math.max(120, Math.min(320, vh - top - margin));
-      const spaceAbove = rect.top - margin - gap;
-      if (maxH < 140 && spaceAbove > 160) {
-        maxH = Math.max(120, Math.min(320, spaceAbove - gap));
-        top = Math.max(margin, rect.top - gap - maxH);
+      left = Math.max(margin, Math.min(left, vw - minWidth - margin));
+      // Anchor below the filter chip (not the full <th>), so the panel sits under the control.
+      let top = anchorRect.bottom + gap;
+      let maxH = Math.max(120, Math.min(360, vh - top - margin));
+      const spaceAbove = anchorRect.top - margin - gap;
+      if (maxH < 160 && spaceAbove > 180) {
+        maxH = Math.max(120, Math.min(360, spaceAbove - gap));
+        top = Math.max(margin, anchorRect.top - gap - maxH);
       }
       return { top, left, maxH, minWidth };
     }
@@ -912,7 +1079,7 @@ export default {
       }
       const th = filterAnchorThEl.value;
       if (th && typeof th.getBoundingClientRect === 'function') {
-        filterPanelAnchor.value = clampPopoverPosition(th.getBoundingClientRect());
+        filterPanelAnchor.value = clampPopoverPosition(th);
       }
     }
 
@@ -1378,16 +1545,13 @@ export default {
         filterAnchorThEl.value = null;
         return;
       }
+      markFilterPanelJustOpened();
       openFilterColumnId.value = id;
       const btn = e.currentTarget;
       const th = btn?.closest?.('.gw-ts-th');
       filterAnchorThEl.value = th || null;
-      const rect =
-        th && typeof th.getBoundingClientRect === 'function'
-          ? th.getBoundingClientRect()
-          : btn?.getBoundingClientRect?.();
-      if (rect) {
-        filterPanelAnchor.value = clampPopoverPosition(rect);
+      if (th && typeof th.getBoundingClientRect === 'function') {
+        filterPanelAnchor.value = clampPopoverPosition(th);
       }
       nextTick(() => {
         repositionOpenFilterPanel();
@@ -1395,19 +1559,86 @@ export default {
       });
     }
 
-    function isFilterTriggerEl(node) {
-      return Boolean(node && typeof node.closest === 'function' && node.closest('.gw-ts-filter-trigger'));
+    function eventPathTouchesFilterPanel(ev) {
+      const panelEl = filterPanelRef.value;
+      const target = ev.target;
+      if (target instanceof Node && panelEl && panelEl.contains(target)) {
+        return true;
+      }
+      const path =
+        typeof ev.composedPath === 'function'
+          ? ev.composedPath()
+          : [ev.target];
+      for (const n of path) {
+        if (!(n instanceof Node)) {
+          continue;
+        }
+        if (panelEl && (n === panelEl || panelEl.contains(n))) {
+          return true;
+        }
+        if (
+          n instanceof Element &&
+          n.matches?.('[data-gw-ts-filter-panel], .gw-ts-filter-panel')
+        ) {
+          return true;
+        }
+      }
+      return false;
     }
 
-    function onDocumentPointerDown(ev) {
+    function eventPathTouchesFilterTrigger(ev) {
+      const target = ev.target;
+      if (
+        target instanceof Element &&
+        typeof target.closest === 'function' &&
+        target.closest('.gw-ts-filter-trigger')
+      ) {
+        return true;
+      }
+      const path =
+        typeof ev.composedPath === 'function'
+          ? ev.composedPath()
+          : [ev.target];
+      for (const n of path) {
+        if (
+          n instanceof Element &&
+          typeof n.closest === 'function' &&
+          n.closest('.gw-ts-filter-trigger')
+        ) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function onGlobalPointerDown(ev) {
       if (!openFilterColumnId.value) {
         return;
       }
-      const t = ev.target;
-      if (filterPanelRef.value && filterPanelRef.value.contains(t)) {
+      if (shouldIgnoreFilterOutsideClose()) {
         return;
       }
-      if (isFilterTriggerEl(t)) {
+      if (eventPathTouchesFilterPanel(ev)) {
+        return;
+      }
+      if (eventPathTouchesFilterTrigger(ev)) {
+        return;
+      }
+      openFilterColumnId.value = null;
+      filterAnchorThEl.value = null;
+    }
+
+    function onFilterOutsideClick(ev) {
+      if (!openFilterColumnId.value) {
+        return;
+      }
+      if (shouldIgnoreFilterOutsideClose()) {
+        return;
+      }
+      if (eventPathTouchesFilterPanel(ev)) {
+        return;
+      }
+      if (eventPathTouchesFilterTrigger(ev)) {
         return;
       }
       openFilterColumnId.value = null;
@@ -1575,6 +1806,92 @@ export default {
       return v == null ? '' : String(v);
     }
 
+    function cellPlainFallback(cell) {
+      void renderTick.value;
+      const v = cell.getValue();
+      return v == null ? '' : String(v);
+    }
+
+    function resolveCellWwDescriptor(cell) {
+      void renderTick.value;
+      const key = cell?.column?.columnDef?.meta?.gwWwTemplateKey;
+      if (!key || typeof key !== 'string') {
+        return null;
+      }
+      const normalizedKey = key.trim();
+      if (
+        normalizedKey === '__editorSlot__' ||
+        normalizedKey === '_slot'
+      ) {
+        const slotArr = unwrapArrayBinding(props.content?.cellWwSlot);
+        for (const item of slotArr) {
+          const raw = unwrapBoundPlainObject(item) ?? item;
+          const el = peelWewebElementDescriptor(raw);
+          if (isLikelyWwElementDescriptor(el)) {
+            return normalizeWwElementBindProps(el);
+          }
+        }
+        return null;
+      }
+      const rawMap = unwrapBoundPlainObject(props.content?.cellWwTemplates);
+      if (
+        !rawMap ||
+        typeof rawMap !== 'object' ||
+        Array.isArray(rawMap)
+      ) {
+        return null;
+      }
+      const desc = rawMap[normalizedKey];
+      if (desc == null) {
+        return null;
+      }
+      const unwrapped = peelWewebElementDescriptor(
+        unwrapBoundPlainObject(desc) ?? desc,
+      );
+      if (!isLikelyWwElementDescriptor(unwrapped)) {
+        return null;
+      }
+      return normalizeWwElementBindProps(unwrapped);
+    }
+
+    function cellWwBindList(cell) {
+      void renderTick.value;
+      const b = resolveCellWwDescriptor(cell);
+      return b ? [b] : [];
+    }
+
+    function showEditorCellWwSlotDropzone(cell, rowIdx) {
+      if (!props.wwEditorState) {
+        return false;
+      }
+      if (rowIdx !== 0) {
+        return false;
+      }
+      const k = cell?.column?.columnDef?.meta?.gwWwTemplateKey;
+      const nk = typeof k === 'string' ? k.trim() : '';
+      if (nk !== '_slot' && nk !== '__editorSlot__') {
+        return false;
+      }
+      void renderTick.value;
+      return !resolveCellWwDescriptor(cell);
+    }
+
+    function cellWwForcedProps(cell, row) {
+      void renderTick.value;
+      const orig = row?.original;
+      const rowData =
+        orig && typeof orig === 'object' && !Array.isArray(orig)
+          ? { ...orig }
+          : orig;
+      return {
+        cellValue: cell.getValue(),
+        rowData,
+        rowId: row.id,
+        columnId: cell.column.id,
+        accessorKey: cell.column.columnDef.accessorKey,
+      };
+    }
+
     function onEditableCellFocus(cell, row) {
       editBaseline.value.set(editCellKey(row, cell), cell.getValue());
     }
@@ -1693,13 +2010,40 @@ export default {
       }
     };
 
+    const filterCloseListenerWindows = [];
+    const filterOutsideClickDocs = [];
+
     onMounted(() => {
-      if (typeof document !== 'undefined') {
-        document.addEventListener('pointerdown', onDocumentPointerDown, true);
-        document.addEventListener('keydown', onDocumentKeydown, true);
+      if (typeof window !== 'undefined') {
+        filterCloseListenerWindows.push(window);
+        try {
+          if (window.top && window.top !== window) {
+            filterCloseListenerWindows.push(window.top);
+          }
+        } catch {
+          /* cross-origin top */
+        }
+        for (const w of filterCloseListenerWindows) {
+          w.addEventListener('pointerdown', onGlobalPointerDown, true);
+          w.addEventListener('mousedown', onGlobalPointerDown, true);
+          w.addEventListener('keydown', onDocumentKeydown, true);
+        }
         window.addEventListener('resize', repositionOpenFilterPanel, {
           passive: true,
         });
+      }
+      if (typeof document !== 'undefined') {
+        document.addEventListener('click', onFilterOutsideClick, false);
+        filterOutsideClickDocs.push(document);
+        try {
+          const td = window.top?.document;
+          if (td && td !== document) {
+            td.addEventListener('click', onFilterOutsideClick, false);
+            filterOutsideClickDocs.push(td);
+          }
+        } catch {
+          /* cross-origin */
+        }
       }
       nextTick(() => {
         scrollElRef.value?.addEventListener('scroll', repositionOpenFilterPanel, {
@@ -1719,10 +2063,16 @@ export default {
       if (typeof window !== 'undefined') {
         window.removeEventListener('resize', repositionOpenFilterPanel);
       }
-      if (typeof document !== 'undefined') {
-        document.removeEventListener('pointerdown', onDocumentPointerDown, true);
-        document.removeEventListener('keydown', onDocumentKeydown, true);
+      for (const w of filterCloseListenerWindows) {
+        w.removeEventListener('pointerdown', onGlobalPointerDown, true);
+        w.removeEventListener('mousedown', onGlobalPointerDown, true);
+        w.removeEventListener('keydown', onDocumentKeydown, true);
       }
+      filterCloseListenerWindows.length = 0;
+      for (const d of filterOutsideClickDocs) {
+        d.removeEventListener('click', onFilterOutsideClick, false);
+      }
+      filterOutsideClickDocs.length = 0;
     });
 
     return {
@@ -1781,17 +2131,40 @@ export default {
       editableCellDisplay,
       onEditableCellFocus,
       onEditableCellBlur,
+      cellPlainFallback,
+      resolveCellWwDescriptor,
+      cellWwBindList,
+      showEditorCellWwSlotDropzone,
+      cellWwForcedProps,
     };
   },
 };
 </script>
 
 <style scoped lang="scss">
-.gw-ts-root {
-  box-sizing: border-box;
+.gw-ts-editor-only-cell-slot {
   width: 100%;
   min-width: 0;
 }
+
+.gw-ts-cell-template-dropzone {
+  box-sizing: border-box;
+  min-height: 48px;
+  min-width: 160px;
+  margin: 0 0 8px;
+  padding: 4px;
+  border: 1px dashed rgba(15, 23, 42, 0.2);
+  border-radius: 6px;
+  background: rgba(249, 250, 251, 0.9);
+}
+
+.gw-ts-cell-template-dropzone--in-cell {
+  margin: 0;
+  min-height: 2.25rem;
+  min-width: 0;
+  width: 100%;
+}
+
 
 .gw-ts-root--fill {
   flex: 1 1 0%;
@@ -1867,6 +2240,15 @@ export default {
   background: #fff;
 }
 
+.gw-ts-anchor--ww {
+  display: block;
+  min-width: 0;
+}
+
+.gw-ts-anchor--ww :deep(.ww-element) {
+  max-width: 100%;
+}
+
 .gw-ts-filter-trigger {
   flex: 0 0 auto;
   display: inline-flex;
@@ -1897,7 +2279,7 @@ export default {
 
 .gw-ts-filter-panel {
   position: fixed;
-  z-index: 9999;
+  z-index: 2147483000;
   min-width: 200px;
   max-width: min(360px, calc(100vw - 16px));
   box-sizing: border-box;
