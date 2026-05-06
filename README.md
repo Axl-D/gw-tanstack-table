@@ -11,14 +11,27 @@ npm run serve
 
 WeWeb: **Dev** → **Open Dev Editor** → **Add local Element** → port (see [development process](https://developer.weweb.io/development-process.html)).
 
+**Important:** **Open Dev Editor** is only wired for **local** bundles (`npm run serve`). Anything you imported from **GitHub** is built and registered in the **normal** editor. If you stay inside the Dev Editor, you will only see the local element — not the imported version.
+
 ## Publish & use in the **real** (non–Dev) editor
 
-1. **Version**: bump `version` in `package.json` when you ship a change WeWeb should rebuild.
-2. **Push** this repo to **GitHub** (branch you want WeWeb to track, e.g. `main`).
-3. **Dashboard** → your workspace → **Coded components** → **Import element** (or attach **source code** to an existing component) → pick the repo and branch.
-4. Wait for WeWeb’s **build** to finish, then open the component **version** and set it as **active** for the project.
-5. Open the **normal** project **Editor** (not “Open Dev Editor”), **Add** panel → **Coded components** → drag **TanStack Table (Guestwhat)** (or your registered name) onto the page.
-6. Clear **local Dev** element instances if you were testing on a port, so the page uses the **published** bundle.
+1. **Version**: bump **`version`** in `package.json` to a numeric dotted form WeWeb expects (e.g. `0.1.0`, `0.2.0`), then commit and push.
+2. **Push** this repo to **GitHub** (branch WeWeb should track, e.g. `main`).
+3. **Workspace** → **Components** (or **Coded components**) → **Import from GitHub** → select repo, branch, and wait until the remote **build succeeds** (fix any build errors shown in the dashboard).
+4. Open the component **version** in the dashboard and set it **active** for your project (and ensure this **project** actually has that coded component **added** / enabled if your plan uses project-level installs).
+5. Open the **standard project Editor** (dashboard → your project → **Editor** — **do not** use **Open Dev Editor** for this step). In the **Add** panel, open **Coded** / **Coded components** / **Development** (wording varies by UI) → find **TanStack Table (Guestwhat)** → drag it onto the page.
+6. Optional: remove any **Add local Element** instance that still points at a dev port, so you are not mixing local and hosted bundles.
+
+### If the imported element does not appear or does not drop on the canvas
+
+| Check | What to do |
+|--------|------------|
+| **Wrong editor** | Use the **normal** editor, not **Open Dev Editor**. |
+| **Build failed** | In the workspace **Components** tab, open the GitHub import and read **build logs**; fix errors, bump `version`, push again. |
+| **Wrong place in Add** | Search the **Add** panel for `TanStack` or `Guestwhat`; coded elements are under **Coded** / **Development**, not only “Elements”. See [Components tab](https://docs.weweb.io/settings-billing-code-export/workspace-settings/components-tab.html) and [Coded components](https://docs.weweb.io/editor/development/coded-components.html). |
+| **Version not active** | In the component’s version list, set the latest build **active** for the project. |
+| **Runtime error** | In the browser **Console** on the page: missing `uid` or other props, or JS errors from the bundle, can block the element. Share the red error line with your team. |
+| **Name mismatch** | Hosted bundle name comes from `weweb build name=gw-tanstack-table`; it must match how WeWeb registered the source. |
 
 Local check before pushing:
 
